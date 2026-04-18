@@ -1,0 +1,16 @@
+[Unit]
+Description=Free Claude Code Proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__FCC_USER__
+ExecStart=__FCC_HOME__/.local/bin/free-claude-code
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
