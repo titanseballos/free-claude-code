@@ -8,8 +8,9 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 TOKEN = "8797545165:AAGWX8hM9ePMk63I60cz8WVS3QEBbcBAQhc"
 AUTHORIZED_USER = 7035504055
 HEXSTRIKE = "http://localhost:8888"
-OR_KEY = "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"
-MODEL = "deepseek/deepseek-r1-distill-llama-70b"
+import os
+GROQ_KEY = os.environ.get("GROQ_API_KEY", "")
+MODEL = "llama-3.3-70b-versatile"
 SYSTEM = (
     "Sos un experto en ciberseguridad ofensiva y defensiva. "
     "Respondés en español de forma técnica y concisa. "
@@ -65,8 +66,8 @@ Solo incluye lo que sea relevante para los resultados obtenidos."""
 def ai(prompt: str) -> str:
     try:
         r = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {OR_KEY}"},
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_KEY}"},
             json={
                 "model": MODEL,
                 "messages": [
