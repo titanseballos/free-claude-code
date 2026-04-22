@@ -1,0 +1,17 @@
+[Unit]
+Description=HexStrike Telegram Bot
+After=network.target hexstrike.service
+Wants=hexstrike.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt
+ExecStart=/opt/hexstrike-env/bin/python /opt/hexstrike-bot.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

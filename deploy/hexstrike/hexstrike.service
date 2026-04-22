@@ -1,0 +1,16 @@
+[Unit]
+Description=HexStrike AI MCP Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hexstrike-ai
+ExecStart=/opt/hexstrike-env/bin/python /opt/hexstrike-ai/hexstrike_server.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
