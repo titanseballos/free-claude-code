@@ -78,7 +78,13 @@ async def lifespan(app: FastAPI):
             data_path = os.path.abspath(settings.claude_workspace)
             os.makedirs(data_path, exist_ok=True)
 
-            api_url = f"http://{settings.host}:{settings.port}/v1"
+            ssh_config = settings.ssh_config
+            # When running remotely via SSH, the remote machine needs to reach the
+            # proxy by its LAN IP, not 0.0.0.0. SSH_PROXY_URL overrides this.
+            if ssh_config and settings.ssh_proxy_url:
+                api_url = settings.ssh_proxy_url
+            else:
+                api_url = f"http://{settings.host}:{settings.port}/v1"
             allowed_dirs = [workspace] if settings.allowed_dir else []
             plans_dir_abs = os.path.abspath(
                 os.path.join(settings.claude_workspace, "plans")
@@ -89,6 +95,7 @@ async def lifespan(app: FastAPI):
                 api_url=api_url,
                 allowed_dirs=allowed_dirs,
                 plans_directory=plans_directory,
+                ssh_config=ssh_config,
             )
 
             # Initialize session store

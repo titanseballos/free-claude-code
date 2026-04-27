@@ -14,7 +14,7 @@
 
 A lightweight proxy that routes Claude Code's Anthropic API calls to **NVIDIA NIM** (40 req/min free), **OpenRouter** (hundreds of models), **LM Studio** (fully local), or **llama.cpp** (local with Anthropic endpoints).
 
-[Quick Start](#quick-start) · [Providers](#providers) · [Discord Bot](#discord-bot) · [Configuration](#configuration) · [Development](#development) · [Contributing](#contributing)
+[Quick Start](#quick-start) · [Providers](#providers) · [Mobile & Remote Control](#mobile--remote-control) · [Configuration](#configuration) · [Development](#development) · [Contributing](#contributing)
 
 ---
 
@@ -37,7 +37,7 @@ A lightweight proxy that routes Claude Code's Anthropic API calls to **NVIDIA NI
 | **Heuristic Tool Parser**  | Models outputting tool calls as text are auto-parsed into structured tool use                   |
 | **Request Optimization**   | 5 categories of trivial API calls intercepted locally, saving quota and latency                 |
 | **Smart Rate Limiting**    | Proactive rolling-window throttle + reactive 429 exponential backoff + optional concurrency cap |
-| **Discord / Telegram Bot** | Remote autonomous coding with tree-based threading, session persistence, and live progress      |
+| **Mobile Control**         | Control Claude from your phone via Discord or Telegram — send tasks, get live results anywhere  |
 | **Subagent Control**       | Task tool interception forces `run_in_background=False`. No runaway subagents                   |
 | **Extensible**             | Clean `BaseProvider` and `MessagingPlatform` ABCs. Add new providers or platforms easily        |
 
@@ -356,9 +356,15 @@ See the Unsloth docs for detailed instructions and capable models:
 
 ---
 
-## Discord Bot
+## Mobile & Remote Control
 
-Control Claude Code remotely from Discord (or Telegram). Send tasks, watch live progress, and manage multiple concurrent sessions.
+The proxy server runs on your PC or server. To use Claude Code from your **phone**, configure the Discord or Telegram bot — then send tasks from the mobile app and receive live responses, all without touching your PC.
+
+| Interface         | Platform       | Best For                          |
+| ----------------- | -------------- | --------------------------------- |
+| **Discord bot**   | iOS / Android  | Multiple users, channel threading |
+| **Telegram bot**  | iOS / Android  | Single user, lightweight setup    |
+| **CLI / VSCode**  | PC / Mac       | Local development                 |
 
 **Capabilities:**
 
@@ -408,6 +414,62 @@ ALLOWED_TELEGRAM_USER_ID="your_telegram_user_id"
 ```
 
 Get a token from [@BotFather](https://t.me/BotFather); find your user ID via [@userinfobot](https://t.me/userinfobot).
+
+### Termux (Android) — run Claude on your phone
+
+Instead of the bot just sending tasks to Claude running on the PC, you can have Claude **run directly inside Termux** on your Android phone. The proxy stays on the PC; the phone's filesystem is where files are edited and commands execute.
+
+```
+Phone (Termux)              PC (proxy server)
+     |                            |
+     | <-- SSH ---------------→  |  (bot message arrives)
+     |  claude CLI runs here      |
+     |  files edited here         |
+     |                            |
+                             LLM provider
+```
+
+**1. Install prerequisites in Termux:**
+
+```bash
+pkg update && pkg upgrade
+pkg install openssh nodejs-lts git
+npm install -g @anthropic-ai/claude-code
+```
+
+**2. Start the SSH server in Termux:**
+
+```bash
+sshd          # starts on port 8022 by default
+whoami        # note your username (e.g. u0_a123)
+```
+
+Set up key-based auth: copy your PC's `~/.ssh/id_ed25519.pub` into Termux's `~/.ssh/authorized_keys`.
+
+**3. Find your phone's LAN IP** (Settings → Wi-Fi → your network → IP address), e.g. `192.168.1.50`.
+
+**4. Add to `.env` on the PC:**
+
+```dotenv
+SSH_WORKSPACE_HOST="192.168.1.50"
+SSH_WORKSPACE_PORT=8022
+SSH_WORKSPACE_USER="u0_a123"          # output of whoami in Termux
+SSH_WORKSPACE_KEY_FILE="~/.ssh/id_ed25519"
+SSH_PROXY_URL="http://192.168.1.100:8082/v1"   # PC's LAN IP
+
+CLAUDE_WORKSPACE="/data/data/com.termux/files/home/projects"
+ALLOWED_DIR="/data/data/com.termux/files/home/projects"
+```
+
+`SSH_PROXY_URL` must be the PC's LAN IP so the phone can reach the proxy — `0.0.0.0` is not routable from a remote machine.
+
+**5. Start the proxy as usual:**
+
+```bash
+uv run uvicorn server:app --host 0.0.0.0 --port 8082
+```
+
+Now every task you send via Discord or Telegram runs Claude inside Termux on your phone.
 
 ### Voice Notes
 

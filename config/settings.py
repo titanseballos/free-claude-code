@@ -121,6 +121,20 @@ class Settings(BaseSettings):
     claude_workspace: str = "./agent_workspace"
     allowed_dir: str = ""
 
+    # ==================== SSH Remote Workspace (Termux / Linux) ====================
+    # When SSH_WORKSPACE_HOST is set the bot runs `claude` on the remote machine
+    # instead of locally. Useful for controlling Claude from a phone via Termux.
+    ssh_workspace_host: str = Field(default="", validation_alias="SSH_WORKSPACE_HOST")
+    ssh_workspace_port: int = Field(default=8022, validation_alias="SSH_WORKSPACE_PORT")
+    ssh_workspace_user: str = Field(default="", validation_alias="SSH_WORKSPACE_USER")
+    ssh_workspace_key_file: str = Field(
+        default="", validation_alias="SSH_WORKSPACE_KEY_FILE"
+    )
+    # Override the proxy URL visible from the remote machine (needed when the
+    # proxy's bind host is 0.0.0.0 — set this to the LAN IP, e.g.
+    # SSH_PROXY_URL="http://192.168.1.100:8082/v1")
+    ssh_proxy_url: str = Field(default="", validation_alias="SSH_PROXY_URL")
+
     # ==================== Server ====================
     host: str = "0.0.0.0"
     port: int = 8082
@@ -203,6 +217,20 @@ class Settings(BaseSettings):
     def model_name(self) -> str:
         """Extract the actual model name from the default model string."""
         return self.model.split("/", 1)[1]
+
+    @property
+    def ssh_config(self):
+        """Return SSHConfig if SSH_WORKSPACE_HOST is set, else None."""
+        if not self.ssh_workspace_host:
+            return None
+        from cli.session import SSHConfig
+
+        return SSHConfig(
+            host=self.ssh_workspace_host,
+            user=self.ssh_workspace_user,
+            port=self.ssh_workspace_port,
+            key_file=self.ssh_workspace_key_file or None,
+        )
 
     def resolve_model(self, claude_model_name: str) -> str:
         """Resolve a Claude model name to the configured provider/model string.

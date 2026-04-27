@@ -3,12 +3,24 @@
 import asyncio
 import json
 import os
+import shlex
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 from typing import Any
 
 from loguru import logger
 
 from .process_registry import register_pid, unregister_pid
+
+
+@dataclass
+class SSHConfig:
+    """SSH connection parameters for remote Termux/Linux workspace."""
+
+    host: str
+    user: str
+    port: int = 8022  # Termux sshd default
+    key_file: str | None = None
 
 
 class CLISession:
@@ -20,11 +32,21 @@ class CLISession:
         api_url: str,
         allowed_dirs: list[str] | None = None,
         plans_directory: str | None = None,
+        ssh_config: SSHConfig | None = None,
     ):
-        self.workspace = os.path.normpath(os.path.abspath(workspace_path))
+        self.workspace = (
+            workspace_path
+            if ssh_config
+            else os.path.normpath(os.path.abspath(workspace_path))
+        )
         self.api_url = api_url
-        self.allowed_dirs = [os.path.normpath(d) for d in (allowed_dirs or [])]
+        self.allowed_dirs = (
+            allowed_dirs or []
+            if ssh_config
+            else [os.path.normpath(d) for d in (allowed_dirs or [])]
+        )
         self.plans_directory = plans_directory
+        self.ssh_config = ssh_config
         self.process: asyncio.subprocess.Process | None = None
         self.current_session_id: str | None = None
         self._is_busy = False
@@ -103,13 +125,16 @@ class CLISession:
                 cmd.extend(["--settings", settings_json])
 
             try:
-                self.process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=self.workspace,
-                    env=env,
-                )
+                if self.ssh_config:
+                    self.process = await self._spawn_ssh(cmd, env)
+                else:
+                    self.process = await asyncio.create_subprocess_exec(
+                        *cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                        cwd=self.workspace,
+                        env=env,
+                    )
                 if self.process and self.process.pid:
                     register_pid(self.process.pid)
 
@@ -193,6 +218,52 @@ class CLISession:
                 self._is_busy = False
                 if self.process and self.process.pid:
                     unregister_pid(self.process.pid)
+
+    async def _spawn_ssh(
+        self, cmd: list[str], env: dict[str, str]
+    ) -> asyncio.subprocess.Process:
+        """Run cmd on the remote SSH host inside self.workspace."""
+        assert self.ssh_config is not None
+        cfg = self.ssh_config
+
+        # Minimal env vars the remote claude process needs
+        remote_env_keys = (
+            "ANTHROPIC_API_KEY",
+            "ANTHROPIC_BASE_URL",
+            "ANTHROPIC_API_URL",
+            "TERM",
+            "PYTHONIOENCODING",
+        )
+        env_exports = " ".join(
+            f"export {k}={shlex.quote(env[k])};" for k in remote_env_keys if k in env
+        )
+        remote_cmd = " ".join(shlex.quote(c) for c in cmd)
+        remote_script = (
+            f"cd {shlex.quote(self.workspace)} && {env_exports} {remote_cmd}"
+        )
+
+        ssh_cmd: list[str] = [
+            "ssh",
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=10",
+            "-p",
+            str(cfg.port),
+        ]
+        if cfg.key_file:
+            ssh_cmd.extend(["-i", cfg.key_file])
+        ssh_cmd.append(f"{cfg.user}@{cfg.host}")
+        ssh_cmd.append(remote_script)
+
+        logger.info(f"Spawning SSH session: {cfg.user}@{cfg.host}:{cfg.port}")
+        return await asyncio.create_subprocess_exec(
+            *ssh_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
 
     async def _handle_line_gen(
         self, line_str: str, session_id_extracted: bool
