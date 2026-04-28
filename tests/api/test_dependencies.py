@@ -10,6 +10,8 @@ from api.dependencies import (
     get_settings,
 )
 from config.nim import NimSettings
+from providers.cerebras import CerebrasProvider
+from providers.groq import GroqProvider
 from providers.lmstudio import LMStudioProvider
 from providers.nvidia_nim import NvidiaNimProvider
 from providers.open_router import OpenRouterProvider
@@ -25,6 +27,8 @@ def _make_mock_settings(**overrides):
     mock.provider_rate_window = 60
     mock.provider_max_concurrency = 5
     mock.open_router_api_key = "test_openrouter_key"
+    mock.groq_api_key = "test_groq_key"
+    mock.cerebras_api_key = "test_cerebras_key"
     mock.lm_studio_base_url = "http://localhost:1234/v1"
     mock.nim = NimSettings()
     mock.http_read_timeout = 300.0
@@ -288,3 +292,63 @@ async def test_cleanup_provider_cleans_all():
 
         nim._client.aclose.assert_called_once()
         lmstudio._client.aclose.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_provider_groq():
+    """Test that provider_type=groq returns GroqProvider."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(provider_type="groq")
+
+        provider = get_provider_for_type("groq")
+
+        assert isinstance(provider, GroqProvider)
+        assert provider._base_url == "https://api.groq.com/openai/v1"
+        assert provider._api_key == "test_groq_key"
+
+
+@pytest.mark.asyncio
+async def test_get_provider_groq_missing_api_key():
+    """Groq with empty API key raises HTTPException 503."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(
+            provider_type="groq",
+            groq_api_key="",
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            get_provider_for_type("groq")
+
+        assert exc_info.value.status_code == 503
+        assert "GROQ_API_KEY" in exc_info.value.detail
+        assert "console.groq.com" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_get_provider_cerebras():
+    """Test that provider_type=cerebras returns CerebrasProvider."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(provider_type="cerebras")
+
+        provider = get_provider_for_type("cerebras")
+
+        assert isinstance(provider, CerebrasProvider)
+        assert provider._base_url == "https://api.cerebras.ai/v1"
+        assert provider._api_key == "test_cerebras_key"
+
+
+@pytest.mark.asyncio
+async def test_get_provider_cerebras_missing_api_key():
+    """Cerebras with empty API key raises HTTPException 503."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(
+            provider_type="cerebras",
+            cerebras_api_key="",
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            get_provider_for_type("cerebras")
+
+        assert exc_info.value.status_code == 503
+        assert "CEREBRAS_API_KEY" in exc_info.value.detail
+        assert "cloud.cerebras.ai" in exc_info.value.detail

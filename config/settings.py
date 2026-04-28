@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     # ==================== OpenRouter Config ====================
     open_router_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
 
+    # ==================== Groq Config ====================
+    groq_api_key: str = Field(default="", validation_alias="GROQ_API_KEY")
+
+    # ==================== Cerebras Config ====================
+    cerebras_api_key: str = Field(default="", validation_alias="CEREBRAS_API_KEY")
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord"
     messaging_platform: str = Field(
@@ -159,7 +165,14 @@ class Settings(BaseSettings):
     def validate_model_format(cls, v: str | None) -> str | None:
         if v is None:
             return None
-        valid_providers = ("nvidia_nim", "open_router", "lmstudio", "llamacpp")
+        valid_providers = (
+            "nvidia_nim",
+            "open_router",
+            "lmstudio",
+            "llamacpp",
+            "groq",
+            "cerebras",
+        )
         if "/" not in v:
             raise ValueError(
                 f"Model must be prefixed with provider type. "
@@ -170,7 +183,7 @@ class Settings(BaseSettings):
         if provider not in valid_providers:
             raise ValueError(
                 f"Invalid provider: '{provider}'. "
-                f"Supported: 'nvidia_nim', 'open_router', 'lmstudio', 'llamacpp'"
+                f"Supported: {', '.join(repr(p) for p in valid_providers)}"
             )
         return v
 
