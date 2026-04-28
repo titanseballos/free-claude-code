@@ -6,8 +6,10 @@ from loguru import logger
 from config.settings import Settings
 from config.settings import get_settings as _get_settings
 from providers.base import BaseProvider, ProviderConfig
+from providers.cerebras import CEREBRAS_BASE_URL, CerebrasProvider
 from providers.common import get_user_facing_error_message
 from providers.exceptions import AuthenticationError
+from providers.groq import GROQ_BASE_URL, GroqProvider
 from providers.llamacpp import LlamaCppProvider
 from providers.lmstudio import LMStudioProvider
 from providers.nvidia_nim import NVIDIA_NIM_BASE_URL, NvidiaNimProvider
@@ -82,13 +84,47 @@ def _create_provider_for_type(provider_type: str, settings: Settings) -> BasePro
             http_connect_timeout=settings.http_connect_timeout,
         )
         return LlamaCppProvider(config)
+    if provider_type == "groq":
+        if not settings.groq_api_key or not settings.groq_api_key.strip():
+            raise AuthenticationError(
+                "GROQ_API_KEY is not set. Add it to your .env file. "
+                "Get a free key at https://console.groq.com/keys"
+            )
+        config = ProviderConfig(
+            api_key=settings.groq_api_key,
+            base_url=GROQ_BASE_URL,
+            rate_limit=settings.provider_rate_limit,
+            rate_window=settings.provider_rate_window,
+            max_concurrency=settings.provider_max_concurrency,
+            http_read_timeout=settings.http_read_timeout,
+            http_write_timeout=settings.http_write_timeout,
+            http_connect_timeout=settings.http_connect_timeout,
+        )
+        return GroqProvider(config)
+    if provider_type == "cerebras":
+        if not settings.cerebras_api_key or not settings.cerebras_api_key.strip():
+            raise AuthenticationError(
+                "CEREBRAS_API_KEY is not set. Add it to your .env file. "
+                "Get a free key at https://cloud.cerebras.ai"
+            )
+        config = ProviderConfig(
+            api_key=settings.cerebras_api_key,
+            base_url=CEREBRAS_BASE_URL,
+            rate_limit=settings.provider_rate_limit,
+            rate_window=settings.provider_rate_window,
+            max_concurrency=settings.provider_max_concurrency,
+            http_read_timeout=settings.http_read_timeout,
+            http_write_timeout=settings.http_write_timeout,
+            http_connect_timeout=settings.http_connect_timeout,
+        )
+        return CerebrasProvider(config)
     logger.error(
-        "Unknown provider_type: '{}'. Supported: 'nvidia_nim', 'open_router', 'lmstudio', 'llamacpp'",
+        "Unknown provider_type: '{}'. Supported: 'nvidia_nim', 'open_router', 'lmstudio', 'llamacpp', 'groq', 'cerebras'",
         provider_type,
     )
     raise ValueError(
         f"Unknown provider_type: '{provider_type}'. "
-        f"Supported: 'nvidia_nim', 'open_router', 'lmstudio', 'llamacpp'"
+        f"Supported: 'nvidia_nim', 'open_router', 'lmstudio', 'llamacpp', 'groq', 'cerebras'"
     )
 
 

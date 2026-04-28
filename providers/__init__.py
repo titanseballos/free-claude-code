@@ -1,6 +1,7 @@
 """Providers package - implement your own provider by extending BaseProvider."""
 
 from .base import BaseProvider, ProviderConfig
+from .cerebras import CerebrasProvider
 from .exceptions import (
     APIError,
     AuthenticationError,
@@ -9,6 +10,7 @@ from .exceptions import (
     ProviderError,
     RateLimitError,
 )
+from .groq import GroqProvider
 from .llamacpp import LlamaCppProvider
 from .lmstudio import LMStudioProvider
 from .nvidia_nim import NvidiaNimProvider
@@ -18,6 +20,8 @@ __all__ = [
     "APIError",
     "AuthenticationError",
     "BaseProvider",
+    "CerebrasProvider",
+    "GroqProvider",
     "InvalidRequestError",
     "LMStudioProvider",
     "LlamaCppProvider",
