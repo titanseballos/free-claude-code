@@ -11,7 +11,7 @@ import uuid
 
 from loguru import logger
 
-from .session import CLISession
+from .session import CLISession, SSHConfig
 
 
 class CLISessionManager:
@@ -28,6 +28,7 @@ class CLISessionManager:
         api_url: str,
         allowed_dirs: list[str] | None = None,
         plans_directory: str | None = None,
+        ssh_config: SSHConfig | None = None,
     ):
         """
         Initialize the session manager.
@@ -37,11 +38,13 @@ class CLISessionManager:
             api_url: API URL for the proxy
             allowed_dirs: Directories the CLI is allowed to access
             plans_directory: Directory for Claude Code CLI plan files (passed via --settings)
+            ssh_config: Optional SSH config to run claude on a remote host (e.g. Termux)
         """
         self.workspace = workspace_path
         self.api_url = api_url
         self.allowed_dirs = allowed_dirs or []
         self.plans_directory = plans_directory
+        self.ssh_config = ssh_config
 
         self._sessions: dict[str, CLISession] = {}
         self._pending_sessions: dict[str, CLISession] = {}
@@ -76,6 +79,7 @@ class CLISessionManager:
                 api_url=self.api_url,
                 allowed_dirs=self.allowed_dirs,
                 plans_directory=self.plans_directory,
+                ssh_config=self.ssh_config,
             )
             self._pending_sessions[temp_id] = new_session
             logger.info(f"Created new session: {temp_id}")
